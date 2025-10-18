@@ -22,11 +22,24 @@ jobs:
 
       - name: Cache Docker layers
         uses: actions/cache@v4
+        
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          path: /tmp/docker-image-cache.tar
+          key: docker-cache-${{ github.ref_name }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            docker-cache-
+      
+        #with:
+        #  path: /tmp/.buildx-cache
+        #  key: ${{ runner.os }}-buildx-${{ github.sha }}
+        #  restore-keys: |
+        #    ${{ runner.os }}-buildx-
+            
+      - name: Load cache if exists
+        if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: |
+          echo "Cache hit - loading image cache..."
+          docker load -i /tmp/docker-image-cache.tar || true
 
       - name: Build Docker image
         run: |
@@ -46,3 +59,9 @@ jobs:
           docker tag  ${{ env.IMAGE_NAME }}:${{ github.event.inputs.TagVersion }} ${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.IMAGE_NAME }}:${{ github.event.inputs.TagVersion }}
           docker push ${{ env.IMAGE_NAME }}:latest
+          
+      - name: Save cache
+        run: |
+          echo "Saving Docker image cache..."
+          docker save ${{ env.IMAGE_NAME }}:${{ github.event.inputs.TagVersion }} -o /tmp/docker-image-cache.tar
+    
